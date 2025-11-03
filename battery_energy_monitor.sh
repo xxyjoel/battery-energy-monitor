@@ -101,32 +101,38 @@ while true; do
     
     # Get power metrics
     POWER_OUTPUT=$(sudo powermetrics -n 1 --samplers cpu_power 2>/dev/null)
-    
+
     CPU=$(echo "$POWER_OUTPUT" | grep "CPU Power:" | awk '{print $3}')
     GPU=$(echo "$POWER_OUTPUT" | grep "GPU Power:" | awk '{print $3}')
     ANE=$(echo "$POWER_OUTPUT" | grep "ANE Power:" | awk '{print $3}')
     TOTAL=$(echo "$POWER_OUTPUT" | grep "Combined Power" | awk '{print $5}')
-    
-    # Format power values
-    CPU_FMT=$(format_power ${CPU:-0})
-    GPU_FMT=$(format_power ${GPU:-0})
-    ANE_FMT=$(format_power ${ANE:-0})
-    TOTAL_FMT=$(format_power ${TOTAL:-0})
-    
+
     # Get battery color
     BAT_COLOR=$(get_battery_color $BATTERY_PCT $CHARGING)
-    
+
     # Create battery bar
     BAT_BAR=$(create_battery_bar $BATTERY_PCT)
-    
+
     # Get timestamp
     TIMESTAMP=$(date '+%H:%M:%S')
-    
+
     # Print status (overwrite previous line)
     printf "\r\033[K"
     printf "${STATUS_ICON} ${BAT_COLOR}${BAT_BAR} %3d%%${RESET} │ " $BATTERY_PCT
-    printf "CPU: %8s │ GPU: %8s │ ANE: %8s │ Total: ${BOLD}%8s${RESET} │ ${GRAY}%s${RESET}" \
-        "$CPU_FMT" "$GPU_FMT" "$ANE_FMT" "$TOTAL_FMT" "$TIMESTAMP"
+
+    # Check if we got power data
+    if [ -n "$TOTAL" ]; then
+        # Format power values
+        CPU_FMT=$(format_power ${CPU:-0})
+        GPU_FMT=$(format_power ${GPU:-0})
+        ANE_FMT=$(format_power ${ANE:-0})
+        TOTAL_FMT=$(format_power ${TOTAL:-0})
+
+        printf "CPU: %8s │ GPU: %8s │ ANE: %8s │ Total: ${BOLD}%8s${RESET} │ ${GRAY}%s${RESET}" \
+            "$CPU_FMT" "$GPU_FMT" "$ANE_FMT" "$TOTAL_FMT" "$TIMESTAMP"
+    else
+        printf "${YELLOW}Power metrics unavailable${RESET} │ ${GRAY}%s${RESET}" "$TIMESTAMP"
+    fi
     
     sleep $INTERVAL
 done

@@ -83,15 +83,20 @@ def get_power_metrics():
             text=True,
             timeout=3
         )
-        
+
+        # Check if command succeeded
+        if result.returncode != 0:
+            # Command failed - return None
+            return None
+
         output = result.stdout
-        
+
         # Extract power values
         cpu_power = re.search(r'CPU Power:\s+(\d+)\s+mW', output)
         gpu_power = re.search(r'GPU Power:\s+(\d+)\s+mW', output)
         ane_power = re.search(r'ANE Power:\s+(\d+)\s+mW', output)
         combined = re.search(r'Combined Power.*?:\s+(\d+)\s+mW', output)
-        
+
         return {
             'cpu': int(cpu_power.group(1)) if cpu_power else 0,
             'gpu': int(gpu_power.group(1)) if gpu_power else 0,
@@ -99,6 +104,7 @@ def get_power_metrics():
             'total': int(combined.group(1)) if combined else 0
         }
     except Exception as e:
+        # Silently return None on any error
         return None
 
 def format_power(mw):
@@ -205,25 +211,32 @@ def monitor_realtime(interval=1.0, compact=False):
                     print(f"  {'─' * 40}")
                     print(f"  {Colors.BOLD}Total: {format_power(power['total']):>8}{Colors.RESET}\n")
                 else:
-                    print(f"  {Colors.YELLOW}⚠️  Power metrics unavailable (sudo required){Colors.RESET}\n")
+                    print(f"  {Colors.YELLOW}⚠️  Power metrics unavailable{Colors.RESET}\n")
                 
                 print(f"{Colors.GRAY}  Updating every {interval}s • Press Ctrl+C to stop{Colors.RESET}")
                 print(f"{Colors.BOLD}{'=' * 70}{Colors.RESET}")
             
             else:
                 # Compact mode - single line
-                if battery and power:
+                if battery:
                     color = get_battery_color(battery['percentage'], battery['is_charging'])
                     status = "⚡" if battery['is_charging'] else "🔋"
-                    
+
                     sys.stdout.write('\r\033[K')  # Clear line
-                    sys.stdout.write(
-                        f"{status} {color}{battery['percentage']:>3}%{Colors.RESET} │ "
-                        f"CPU: {format_power(power['cpu']):>7} │ "
-                        f"GPU: {format_power(power['gpu']):>7} │ "
-                        f"Total: {format_power(power['total']):>7} │ "
-                        f"{Colors.GRAY}{timestamp}{Colors.RESET}"
-                    )
+                    if power:
+                        sys.stdout.write(
+                            f"{status} {color}{battery['percentage']:>3}%{Colors.RESET} │ "
+                            f"CPU: {format_power(power['cpu']):>7} │ "
+                            f"GPU: {format_power(power['gpu']):>7} │ "
+                            f"Total: {format_power(power['total']):>7} │ "
+                            f"{Colors.GRAY}{timestamp}{Colors.RESET}"
+                        )
+                    else:
+                        sys.stdout.write(
+                            f"{status} {color}{battery['percentage']:>3}%{Colors.RESET} │ "
+                            f"{Colors.YELLOW}Power metrics unavailable{Colors.RESET} │ "
+                            f"{Colors.GRAY}{timestamp}{Colors.RESET}"
+                        )
                     sys.stdout.flush()
             
             time.sleep(interval)

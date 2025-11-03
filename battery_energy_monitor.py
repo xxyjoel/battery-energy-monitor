@@ -37,8 +37,9 @@ def get_battery_info():
         percentage = int(percentage_match.group(1)) if percentage_match else 0
         
         # Parse charging status
-        is_charging = 'AC Power' in output or 'charging' in output.lower()
-        is_charged = 'charged' in output.lower()
+        # Check if on AC Power and not discharging
+        is_charging = 'AC Power' in output and 'discharging' not in output.lower()
+        is_charged = 'charged' in output.lower() and not 'discharged' in output.lower()
         
         # Parse time remaining
         time_remaining = None
@@ -130,24 +131,30 @@ def clear_screen():
 
 def monitor_realtime(interval=1.0, compact=False):
     """Real-time monitoring of battery and energy"""
-    
-    # Check if sudo access is available
+
+    # Request sudo access upfront for power metrics
+    print(f"{Colors.YELLOW}🔐 Requesting sudo access for power metrics...{Colors.RESET}")
     try:
-        subprocess.run(
-            ['sudo', '-n', 'true'],
-            capture_output=True,
-            timeout=1
+        result = subprocess.run(
+            ['sudo', '-v'],
+            timeout=30
         )
-    except:
-        print(f"{Colors.YELLOW}⚠️  This tool requires sudo access for power metrics.{Colors.RESET}")
-        print(f"{Colors.GRAY}Run: sudo -v{Colors.RESET}\n")
-    
+        if result.returncode != 0:
+            print(f"{Colors.RED}✗ Failed to obtain sudo access. Power metrics will be unavailable.{Colors.RESET}")
+            time.sleep(2)
+    except Exception as e:
+        print(f"{Colors.RED}✗ Error requesting sudo: {e}{Colors.RESET}")
+        time.sleep(2)
+
+    # Clear screen once at the start
+    clear_screen()
+
     try:
         iteration = 0
         while True:
-            # Only clear screen periodically to reduce flicker
-            if iteration % 10 == 0 or iteration == 0:
-                clear_screen()
+            # Move cursor to top-left for in-place updates
+            if iteration > 0:
+                print('\033[H', end='')
             
             battery = get_battery_info()
             power = get_power_metrics()

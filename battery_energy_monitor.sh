@@ -22,7 +22,8 @@ get_battery_percentage() {
 
 # Function to check if charging
 is_charging() {
-    pmset -g batt | grep -q "AC Power\|charging"
+    local output=$(pmset -g batt)
+    echo "$output" | grep -q "AC Power" && ! echo "$output" | grep -q "discharging"
 }
 
 # Function to get time remaining
@@ -71,6 +72,15 @@ get_battery_color() {
 clear
 
 echo -e "${BOLD}🔋 Battery & Energy Monitor${RESET}"
+echo -e "${YELLOW}🔐 Requesting sudo access for power metrics...${RESET}"
+
+# Request sudo access upfront
+sudo -v
+if [ $? -ne 0 ]; then
+    echo -e "${RED}✗ Failed to obtain sudo access. Power metrics will be unavailable.${RESET}"
+    sleep 2
+fi
+
 echo -e "${GRAY}Press Ctrl+C to stop${RESET}"
 echo ""
 
